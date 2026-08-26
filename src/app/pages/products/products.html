@@ -1,0 +1,181 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Products</h1>
+      <p class="page-subtitle">
+        {{ totalCount() }} product{{ totalCount() === 1 ? '' : 's' }} total — live birds, eggs, feed & supplies.
+      </p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openCreateForm()">+ New product</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="field">
+      <label>Category</label>
+      <select [ngModel]="filterCategoryId()" (ngModelChange)="filterCategoryId.set($event)" name="filter-category">
+        <option value="">All categories</option>
+        @for (category of categories(); track category.id) {
+          <option [value]="category.id">{{ category.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label>Search</label>
+      <input
+        [ngModel]="filterSearch()"
+        (ngModelChange)="filterSearch.set($event)"
+        name="filter-search"
+        placeholder="Search by name…"
+        (keyup.enter)="applyFilters()"
+      />
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="applyFilters()">Apply</button>
+  </div>
+
+  @if (showForm()) {
+    <form class="card" [formGroup]="form" (ngSubmit)="submit()">
+      <h3>{{ editingProduct() ? 'Edit product' : 'New product' }}</h3>
+      @if (formError()) {
+        <div class="alert alert-danger">{{ formError() }}</div>
+      }
+      <div class="form-grid">
+        <div class="field">
+          <label for="p-name">Name</label>
+          <input id="p-name" formControlName="name" placeholder="e.g. Broiler Chicken (Live, 2kg)" />
+        </div>
+        <div class="field">
+          <label for="p-category">Category</label>
+          <select id="p-category" formControlName="categoryId">
+            <option value="" disabled>Select a category</option>
+            @for (category of categories(); track category.id) {
+              <option [value]="category.id">{{ category.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-price">Price (Le)</label>
+          <input id="p-price" type="number" min="0" step="0.01" formControlName="price" />
+          <span class="hint">Whole cents are stored server-side; enter the major-unit price.</span>
+        </div>
+        <div class="field">
+          <label for="p-qty">Quantity in stock</label>
+          <input id="p-qty" type="number" min="0" step="1" formControlName="quantityInStock" />
+          <span class="hint">Birds, crates of eggs, or feed bags — whatever unit this product sells in.</span>
+        </div>
+        <div class="field">
+          <label for="p-desc">Description</label>
+          <input id="p-desc" formControlName="description" placeholder="e.g. Farm-raised broiler, dressed and packaged" />
+        </div>
+        <div class="field">
+          <label for="p-image">Photo</label>
+          <input id="p-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" (change)="onFileSelected($event)" />
+          <span class="hint">jpg/jpeg/png/webp/gif, up to 5 MB.</span>
+        </div>
+        @if (editingProduct()) {
+          <div class="field">
+            <label class="checkbox-row">
+              <input type="checkbox" formControlName="isActive" />
+              Active (visible on storefront)
+            </label>
+          </div>
+        }
+      </div>
+
+      @if (imagePreview()) {
+        <img [src]="imagePreview()" alt="Product preview" class="image-preview" />
+      }
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          @if (saving()) {
+            <span class="spinner"></span> Saving…
+          } @else {
+            Save product
+          }
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
+      </div>
+    </form>
+  }
+
+  @if (rowError()) {
+    <div class="alert alert-danger">{{ rowError() }}</div>
+  }
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Price</th>
+          <th>Stock</th>
+          <th>Status</th>
+          <th>Updated</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr class="empty-row"><td colspan="8">Loading products…</td></tr>
+        } @else if (loadError()) {
+          <tr class="empty-row"><td colspan="8">{{ loadError() }}</td></tr>
+        } @else if (products().length === 0) {
+          <tr class="empty-row"><td colspan="8">No products match these filters.</td></tr>
+        } @else {
+          @for (product of products(); track product.id) {
+            <tr>
+              <td>
+                @if (product.imagePath) {
+                  <img [src]="product.imagePath" alt="" class="thumb" />
+                } @else {
+                  <div class="thumb thumb-empty"></div>
+                }
+              </td>
+              <td>{{ product.name }}</td>
+              <td>{{ product.categoryName }}</td>
+              <td>Le {{ (product.priceCents / 100) | number: '1.2-2' }}</td>
+              <td>{{ product.quantityInStock }}</td>
+              <td>
+                @if (product.isActive) {
+                  <span class="badge badge-success">Active</span>
+                } @else {
+                  <span class="badge badge-neutral">Inactive</span>
+                }
+              </td>
+              <td>{{ (product.updatedAt || product.createdAt) | date: 'mediumDate' }}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openEditForm(product)">Edit</button>
+                  @if (product.isActive) {
+                    <button
+                      type="button"
+                      class="btn btn-danger btn-sm"
+                      [disabled]="deletingId() === product.id"
+                      (click)="remove(product)"
+                    >
+                      Deactivate
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (totalPages() > 1) {
+    <div class="pagination">
+      <button type="button" class="btn btn-secondary btn-sm" [disabled]="page() <= 1" (click)="goToPage(-1)">
+        ← Previous
+      </button>
+      <span class="muted">Page {{ page() }} of {{ totalPages() }}</span>
+      <button type="button" class="btn btn-secondary btn-sm" [disabled]="page() >= totalPages()" (click)="goToPage(1)">
+        Next →
+      </button>
+    </div>
+  }
+</div>

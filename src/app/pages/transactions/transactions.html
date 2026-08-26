@@ -1,0 +1,145 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Transactions</h1>
+      <p class="page-subtitle">Monitor payments and reconcile them against provider statements.</p>
+    </div>
+  </div>
+
+  @if (summary(); as s) {
+    <div class="stat-grid">
+      <div class="stat-tile">
+        <div class="stat-label">Total transactions</div>
+        <div class="stat-value">{{ s.totalCount }}</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">Total amount</div>
+        <div class="stat-value">Le {{ (s.totalAmountCents / 100) | number: '1.2-2' }}</div>
+      </div>
+      @for (entry of s.countByStatus | keyvalue; track entry.key) {
+        <div class="stat-tile">
+          <div class="stat-label">{{ entry.key }}</div>
+          <div class="stat-value">{{ entry.value }}</div>
+          <div class="muted stat-sub">Le {{ ((s.amountByStatus[entry.key] || 0) / 100) | number: '1.2-2' }}</div>
+        </div>
+      }
+    </div>
+  }
+
+  <div class="filter-bar">
+    <div class="field">
+      <label>Status</label>
+      <select [ngModel]="filter().status" (ngModelChange)="updateFilter({ status: $event })" name="tx-status">
+        <option value="">All statuses</option>
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ status }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label>Provider</label>
+      <input
+        [ngModel]="filter().provider"
+        (ngModelChange)="updateFilter({ provider: $event })"
+        name="tx-provider"
+        placeholder="e.g. OrangeMoney"
+      />
+    </div>
+    <div class="field">
+      <label>From</label>
+      <input type="date" [ngModel]="filter().from" (ngModelChange)="updateFilter({ from: $event })" name="tx-from" />
+    </div>
+    <div class="field">
+      <label>To</label>
+      <input type="date" [ngModel]="filter().to" (ngModelChange)="updateFilter({ to: $event })" name="tx-to" />
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="load()">Apply</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Reference</th>
+          <th>Order #</th>
+          <th>Provider</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr class="empty-row"><td colspan="7">Loading transactions…</td></tr>
+        } @else if (loadError()) {
+          <tr class="empty-row"><td colspan="7">{{ loadError() }}</td></tr>
+        } @else if (transactions().length === 0) {
+          <tr class="empty-row"><td colspan="7">No transactions match these filters.</td></tr>
+        } @else {
+          @for (tx of transactions(); track tx.id) {
+            <tr>
+              <td>{{ tx.reference }}</td>
+              <td>{{ tx.orderNumber }}</td>
+              <td>{{ tx.provider }}</td>
+              <td>Le {{ (tx.amountCents / 100) | number: '1.2-2' }}</td>
+              <td><span class="badge" [class]="statusBadgeClass(tx.status)">{{ tx.status }}</span></td>
+              <td>{{ tx.createdAt | date: 'medium' }}</td>
+              <td>
+                @if (tx.status === 'Pending' || tx.status === 'Success') {
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="startReconcile(tx)">Reconcile</button>
+                } @else if (tx.reconciledByAdminUsername) {
+                  <span class="muted hint">by {{ tx.reconciledByAdminUsername }}</span>
+                }
+              </td>
+            </tr>
+            @if (reconcilingId() === tx.id) {
+              <tr>
+                <td colspan="7">
+                  <div class="reconcile-panel">
+                    @if (reconcileError()) {
+                      <div class="alert alert-danger">{{ reconcileError() }}</div>
+                    }
+                    <div class="form-grid">
+                      <div class="field">
+                        <label>New status</label>
+                        <select
+                          [ngModel]="reconcileStatus()"
+                          (ngModelChange)="reconcileStatus.set($event)"
+                          name="reconcile-status-{{ tx.id }}"
+                        >
+                          <option value="Reconciled">Reconciled</option>
+                          <option value="Failed">Failed</option>
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label>Notes</label>
+                        <input
+                          [ngModel]="reconcileNotes()"
+                          (ngModelChange)="reconcileNotes.set($event)"
+                          name="reconcile-notes-{{ tx.id }}"
+                          placeholder="e.g. Matched against provider statement"
+                        />
+                      </div>
+                    </div>
+                    <div class="form-actions">
+                      <button
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        [disabled]="reconciling()"
+                        (click)="submitReconcile(tx)"
+                      >
+                        Save
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-sm" (click)="cancelReconcile()">Cancel</button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

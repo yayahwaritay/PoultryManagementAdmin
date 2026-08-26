@@ -1,0 +1,179 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Admins</h1>
+      <p class="page-subtitle">Create Admin accounts and manage their feature permissions.</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="toggleCreateForm()">
+      {{ showCreateForm() ? 'Cancel' : '+ New admin' }}
+    </button>
+  </div>
+
+  @if (showCreateForm()) {
+    <form class="card" [formGroup]="createForm" (ngSubmit)="submitCreate()">
+      @if (createError()) {
+        <div class="alert alert-danger">{{ createError() }}</div>
+      }
+      <div class="form-grid">
+        <div class="field">
+          <label for="new-username">Username</label>
+          <input id="new-username" formControlName="username" placeholder="e.g. admin.orders2" />
+        </div>
+        <div class="field">
+          <label for="new-password">Password</label>
+          <input id="new-password" type="password" formControlName="password" placeholder="At least 6 characters" />
+        </div>
+      </div>
+      <div class="field permissions-field">
+        <label>Permissions</label>
+        <div class="checkbox-row">
+          <input id="new-mp" type="checkbox" formControlName="manageProducts" />
+          <label for="new-mp">ManageProducts</label>
+        </div>
+        <div class="checkbox-row">
+          <input id="new-co" type="checkbox" formControlName="confirmOrders" />
+          <label for="new-co">ConfirmOrders</label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" [disabled]="creating()">
+          @if (creating()) {
+            <span class="spinner"></span> Creating…
+          } @else {
+            Create admin
+          }
+        </button>
+      </div>
+    </form>
+  }
+
+  @if (rowError()) {
+    <div class="alert alert-danger">{{ rowError() }}</div>
+  }
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Permissions</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr class="empty-row"><td colspan="6">Loading admins…</td></tr>
+        } @else if (loadError()) {
+          <tr class="empty-row"><td colspan="6">{{ loadError() }}</td></tr>
+        } @else if (admins().length === 0) {
+          <tr class="empty-row"><td colspan="6">No admins yet.</td></tr>
+        } @else {
+          @for (admin of admins(); track admin.id) {
+            @if (editingId() === admin.id) {
+              <tr>
+                <td>{{ admin.username }}</td>
+                <td>
+                  @if (admin.isSuperAdmin) {
+                    <span class="badge badge-brand">Super Admin</span>
+                  } @else {
+                    <span class="badge badge-neutral">Admin</span>
+                  }
+                </td>
+                <td>
+                  <div class="checkbox-row">
+                    <input
+                      type="checkbox"
+                      [ngModel]="editDraft().ManageProducts"
+                      (ngModelChange)="updateDraft({ ManageProducts: $event })"
+                      name="edit-mp-{{ admin.id }}"
+                    />
+                    ManageProducts
+                  </div>
+                  <div class="checkbox-row">
+                    <input
+                      type="checkbox"
+                      [ngModel]="editDraft().ConfirmOrders"
+                      (ngModelChange)="updateDraft({ ConfirmOrders: $event })"
+                      name="edit-co-{{ admin.id }}"
+                    />
+                    ConfirmOrders
+                  </div>
+                </td>
+                <td>
+                  <label class="checkbox-row">
+                    <input
+                      type="checkbox"
+                      [ngModel]="editDraft().isActive"
+                      (ngModelChange)="updateDraft({ isActive: $event })"
+                      name="edit-active-{{ admin.id }}"
+                    />
+                    Active
+                  </label>
+                </td>
+                <td>{{ admin.createdAt | date: 'mediumDate' }}</td>
+                <td>
+                  <div class="row-actions">
+                    <button type="button" class="btn btn-primary btn-sm" [disabled]="savingEdit()" (click)="saveEdit(admin)">
+                      Save
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="cancelEdit()">Cancel</button>
+                  </div>
+                  @if (editError()) {
+                    <div class="hint error-hint">{{ editError() }}</div>
+                  }
+                </td>
+              </tr>
+            } @else {
+              <tr>
+                <td>{{ admin.username }}</td>
+                <td>
+                  @if (admin.isSuperAdmin) {
+                    <span class="badge badge-brand">Super Admin</span>
+                  } @else {
+                    <span class="badge badge-neutral">Admin</span>
+                  }
+                </td>
+                <td>
+                  @if (admin.permissions.length === 0) {
+                    <span class="muted">—</span>
+                  }
+                  @for (permission of admin.permissions; track permission) {
+                    <span class="badge badge-brand permission-chip">{{ permission }}</span>
+                  }
+                </td>
+                <td>
+                  @if (admin.isActive) {
+                    <span class="badge badge-success">Active</span>
+                  } @else {
+                    <span class="badge badge-neutral">Inactive</span>
+                  }
+                </td>
+                <td>{{ admin.createdAt | date: 'mediumDate' }}</td>
+                <td>
+                  @if (!admin.isSuperAdmin) {
+                    <div class="row-actions">
+                      <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(admin)">Edit</button>
+                      @if (admin.isActive) {
+                        <button
+                          type="button"
+                          class="btn btn-danger btn-sm"
+                          [disabled]="deactivatingId() === admin.id"
+                          (click)="deactivate(admin)"
+                        >
+                          Deactivate
+                        </button>
+                      }
+                    </div>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

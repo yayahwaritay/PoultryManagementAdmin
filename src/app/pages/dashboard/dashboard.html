@@ -1,0 +1,50 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Welcome back, {{ username() }}</h1>
+      <p class="page-subtitle">
+        {{ isSuperAdmin() ? "Here's an overview of the poultry farm store." : "Here's what needs your attention." }}
+      </p>
+    </div>
+  </div>
+
+  @if (loadError()) {
+    <div class="alert alert-danger">{{ loadError() }}</div>
+  }
+
+  @if (canConfirmOrders) {
+    <div class="stat-grid">
+      <div class="stat-tile">
+        <div class="stat-label">Pending orders</div>
+        <div class="stat-value">{{ pendingOrderCount() ?? '—' }}</div>
+      </div>
+      @if (summary(); as s) {
+        <div class="stat-tile">
+          <div class="stat-label">Total transactions</div>
+          <div class="stat-value">{{ s.totalCount }}</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Total amount</div>
+          <div class="stat-value">Le {{ (s.totalAmountCents / 100) | number: '1.2-2' }}</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Unreconciled</div>
+          <div class="stat-value">
+            {{ (s.countByStatus['Pending'] || 0) + (s.countByStatus['Success'] || 0) }}
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <div class="quick-links">
+    @for (link of quickLinks; track link.path) {
+      @if (link.visible) {
+        <a class="card quick-link" [routerLink]="link.path">
+          <h3>{{ link.label }}</h3>
+          <p class="muted">{{ link.description }}</p>
+        </a>
+      }
+    }
+  </div>
+</div>

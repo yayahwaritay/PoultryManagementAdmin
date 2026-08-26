@@ -1,0 +1,47 @@
+<div class="login-page">
+  <form class="login-card" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="brand-mark">🐔</div>
+    <h1>Poultry Farm</h1>
+    <p class="subtitle">Sign in to the admin console with your Admin or Super Admin account</p>
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <div class="field">
+      <label for="username">Username</label>
+      <input
+        id="username"
+        type="text"
+        formControlName="username"
+        autocomplete="username"
+        placeholder="e.g. Yayah.waritay"
+      />
+      @if (form.controls.username.invalid && form.controls.username.touched) {
+        <span class="hint error-hint">Username is required.</span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="password">Password</label>
+      <input
+        id="password"
+        type="password"
+        formControlName="password"
+        autocomplete="current-password"
+        placeholder="••••••••"
+      />
+      @if (form.controls.password.invalid && form.controls.password.touched) {
+        <span class="hint error-hint">Password is required.</span>
+      }
+    </div>
+
+    <button type="submit" class="btn btn-primary submit-btn" [disabled]="submitting()">
+      @if (submitting()) {
+        <span class="spinner"></span> Signing in…
+      } @else {
+        Sign in
+      }
+    </button>
+  </form>
+</div>

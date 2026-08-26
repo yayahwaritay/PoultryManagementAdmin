@@ -1,0 +1,28 @@
+.thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--border);
+}
+
+.thumb-empty {
+  background: var(--ink-100);
+}
+
+.image-preview {
+  margin-top: 1rem;
+  max-width: 160px;
+  max-height: 160px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}

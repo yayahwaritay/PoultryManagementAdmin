@@ -1,0 +1,14 @@
+.stat-sub {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+}
+
+.reconcile-panel {
+  background: var(--ink-100);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.reconcile-panel .form-actions {
+  margin-top: 0.75rem;
+}

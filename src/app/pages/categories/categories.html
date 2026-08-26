@@ -1,0 +1,142 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Categories</h1>
+      <p class="page-subtitle">Manage the poultry product category tree.</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="toggleCreateForm()">
+      {{ showCreateForm() ? 'Cancel' : '+ New category' }}
+    </button>
+  </div>
+
+  @if (showCreateForm()) {
+    <form class="card" [formGroup]="createForm" (ngSubmit)="submitCreate()">
+      @if (createError()) {
+        <div class="alert alert-danger">{{ createError() }}</div>
+      }
+      <div class="form-grid">
+        <div class="field">
+          <label for="new-name">Name</label>
+          <input id="new-name" formControlName="name" placeholder="e.g. Live Birds" />
+        </div>
+        <div class="field">
+          <label for="new-description">Description</label>
+          <input
+            id="new-description"
+            formControlName="description"
+            placeholder="e.g. Broilers, layers and day-old chicks"
+          />
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" [disabled]="creating()">
+          @if (creating()) {
+            <span class="spinner"></span> Saving…
+          } @else {
+            Create category
+          }
+        </button>
+      </div>
+    </form>
+  }
+
+  @if (deleteError()) {
+    <div class="alert alert-danger">{{ deleteError() }}</div>
+  }
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Description</th>
+          <th>Products</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr class="empty-row"><td colspan="6">Loading categories…</td></tr>
+        } @else if (loadError()) {
+          <tr class="empty-row"><td colspan="6">{{ loadError() }}</td></tr>
+        } @else if (categories().length === 0) {
+          <tr class="empty-row"><td colspan="6">No categories yet.</td></tr>
+        } @else {
+          @for (category of categories(); track category.id) {
+            @if (editingId() === category.id) {
+              <tr>
+                <td>
+                  <input
+                    [ngModel]="editDraft().name"
+                    (ngModelChange)="updateDraft({ name: $event })"
+                    name="edit-name-{{ category.id }}"
+                  />
+                </td>
+                <td>
+                  <input
+                    [ngModel]="editDraft().description"
+                    (ngModelChange)="updateDraft({ description: $event })"
+                    name="edit-desc-{{ category.id }}"
+                  />
+                </td>
+                <td>{{ category.productCount }}</td>
+                <td>
+                  <label class="checkbox-row">
+                    <input
+                      type="checkbox"
+                      [ngModel]="editDraft().isActive"
+                      (ngModelChange)="updateDraft({ isActive: $event })"
+                      name="edit-active-{{ category.id }}"
+                    />
+                    Active
+                  </label>
+                </td>
+                <td>{{ category.createdAt | date: 'mediumDate' }}</td>
+                <td>
+                  <div class="row-actions">
+                    <button type="button" class="btn btn-primary btn-sm" [disabled]="savingEdit()" (click)="saveEdit(category.id)">
+                      Save
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="cancelEdit()">Cancel</button>
+                  </div>
+                  @if (editError()) {
+                    <div class="hint error-hint">{{ editError() }}</div>
+                  }
+                </td>
+              </tr>
+            } @else {
+              <tr>
+                <td>{{ category.name }}</td>
+                <td class="muted">{{ category.description || '—' }}</td>
+                <td>{{ category.productCount }}</td>
+                <td>
+                  @if (category.isActive) {
+                    <span class="badge badge-success">Active</span>
+                  } @else {
+                    <span class="badge badge-neutral">Inactive</span>
+                  }
+                </td>
+                <td>{{ category.createdAt | date: 'mediumDate' }}</td>
+                <td>
+                  <div class="row-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(category)">Edit</button>
+                    <button
+                      type="button"
+                      class="btn btn-danger btn-sm"
+                      [disabled]="deletingId() === category.id"
+                      (click)="remove(category)"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

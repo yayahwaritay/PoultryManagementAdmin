@@ -1,0 +1,39 @@
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">🐔</span>
+      <div>
+        <div class="brand-title">POULTRY FARM</div>
+        <div class="brand-subtitle">Admin Console</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      @for (item of navItems(); track item.path) {
+        @if (item.visible) {
+          <a [routerLink]="item.path" routerLinkActive="active" class="nav-link">
+            <span class="nav-icon">{{ item.icon }}</span>
+            {{ item.label }}
+          </a>
+        }
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="account">
+        <div class="account-avatar">{{ username()?.charAt(0)?.toUpperCase() }}</div>
+        <div>
+          <div class="account-name">{{ username() }}</div>
+          <div class="account-role">{{ roleLabel() }}</div>
+        </div>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm logout-btn" (click)="logout()">
+        Sign out
+      </button>
+    </div>
+  </aside>
+
+  <div class="shell-main">
+    <router-outlet />
+  </div>
+</div>

@@ -1,0 +1,155 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Orders</h1>
+      <p class="page-subtitle">Review and confirm or reject customer orders.</p>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="field">
+      <label>Status</label>
+      <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)" name="status-filter">
+        <option value="">All statuses</option>
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ status }}</option>
+        }
+      </select>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="applyFilter()">Apply</button>
+  </div>
+
+  <div class="orders-layout">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th>Total</th>
+            <th>Placed</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr class="empty-row"><td colspan="5">Loading orders…</td></tr>
+          } @else if (loadError()) {
+            <tr class="empty-row"><td colspan="5">{{ loadError() }}</td></tr>
+          } @else if (orders().length === 0) {
+            <tr class="empty-row"><td colspan="5">No orders match this filter.</td></tr>
+          } @else {
+            @for (order of orders(); track order.id) {
+              <tr
+                (click)="select(order)"
+                class="clickable-row"
+                [class.selected]="selectedOrder()?.id === order.id"
+              >
+                <td>{{ order.orderNumber }}</td>
+                <td>{{ order.customerName }}</td>
+                <td><span class="badge" [class]="statusBadgeClass(order.status)">{{ order.status }}</span></td>
+                <td>Le {{ (order.totalCents / 100) | number: '1.2-2' }}</td>
+                <td>{{ order.createdAt | date: 'medium' }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (selectedOrder(); as order) {
+      <aside class="card detail-panel">
+        <div class="detail-header">
+          <h3>{{ order.orderNumber }}</h3>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="closeDetail()">Close</button>
+        </div>
+
+        <span class="badge" [class]="statusBadgeClass(order.status)">{{ order.status }}</span>
+
+        <dl class="detail-list">
+          <dt>Customer</dt>
+          <dd>{{ order.customerName }}</dd>
+          <dt>Phone</dt>
+          <dd>{{ order.customerPhone }}</dd>
+          <dt>Email</dt>
+          <dd>{{ order.customerEmail }}</dd>
+          <dt>Delivery address</dt>
+          <dd>{{ order.deliveryAddress }}</dd>
+          <dt>Placed</dt>
+          <dd>{{ order.createdAt | date: 'medium' }}</dd>
+          @if (order.confirmedAt) {
+            <dt>Confirmed</dt>
+            <dd>{{ order.confirmedAt | date: 'medium' }} by {{ order.confirmedByAdminUsername }}</dd>
+          }
+        </dl>
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Unit</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of order.items; track item.productId) {
+              <tr>
+                <td>{{ item.productNameSnapshot }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>Le {{ (item.unitPriceCentsSnapshot / 100) | number: '1.2-2' }}</td>
+                <td>Le {{ (item.subtotalCents / 100) | number: '1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <div><span>Subtotal</span><span>Le {{ (order.subtotalCents / 100) | number: '1.2-2' }}</span></div>
+          <div><span>Delivery</span><span>Le {{ (order.deliveryFeeCents / 100) | number: '1.2-2' }}</span></div>
+          <div class="total-row"><span>Total</span><span>Le {{ (order.totalCents / 100) | number: '1.2-2' }}</span></div>
+        </div>
+
+        @if (order.status === 'Pending') {
+          <div class="field">
+            <label for="admin-notes">Admin notes</label>
+            <textarea
+              id="admin-notes"
+              rows="3"
+              [ngModel]="adminNotes()"
+              (ngModelChange)="adminNotes.set($event)"
+              name="admin-notes"
+              placeholder="Optional note, e.g. confirmed by phone"
+            ></textarea>
+          </div>
+
+          @if (actionError()) {
+            <div class="alert alert-danger">{{ actionError() }}</div>
+          }
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-success" [disabled]="acting() !== null" (click)="confirm()">
+              @if (acting() === 'confirm') {
+                <span class="spinner"></span> Confirming…
+              } @else {
+                Confirm order
+              }
+            </button>
+            <button type="button" class="btn btn-danger" [disabled]="acting() !== null" (click)="reject()">
+              @if (acting() === 'reject') {
+                <span class="spinner"></span> Rejecting…
+              } @else {
+                Reject order
+              }
+            </button>
+          </div>
+        } @else if (order.adminNotes) {
+          <div class="field">
+            <label>Admin notes</label>
+            <p class="muted">{{ order.adminNotes }}</p>
+          </div>
+        }
+      </aside>
+    }
+  </div>
+</div>
