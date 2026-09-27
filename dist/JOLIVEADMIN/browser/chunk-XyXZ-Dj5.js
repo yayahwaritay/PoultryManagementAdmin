@@ -1,0 +1,1 @@
+function s(r){let o=r.get(`newPassword`)?.value,t=r.get(`confirmPassword`)?.value;return o&&t&&o!==t?{mismatch:!0}:null}export{s as t};
