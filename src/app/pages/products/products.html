@@ -128,7 +128,7 @@
             <tr>
               <td>
                 @if (product.imagePath) {
-                  <img [src]="product.imagePath" alt="" class="thumb" />
+                  <img [src]="imageUrl(product.imagePath)" alt="" class="thumb" />
                 } @else {
                   <div class="thumb thumb-empty"></div>
                 }

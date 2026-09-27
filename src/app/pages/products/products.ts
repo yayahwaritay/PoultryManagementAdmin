@@ -6,6 +6,7 @@ import { AdminProductsService } from '../../core/admin/admin-products.service';
 import { AdminCategoriesService } from '../../core/admin/admin-categories.service';
 import { CategoryDto, ProductDto } from '../../core/admin/admin.models';
 import { extractApiErrorMessage } from '../../core/api-error';
+import { resolveMediaUrl } from '../../core/media-url';
 
 const PAGE_SIZE = 20;
 
@@ -37,6 +38,7 @@ export class Products {
   readonly saving = signal(false);
   readonly formError = signal<string | null>(null);
   readonly imagePreview = signal<string | null>(null);
+  readonly imageUrl = resolveMediaUrl;
 
   readonly deletingId = signal<string | null>(null);
   readonly rowError = signal<string | null>(null);
@@ -118,7 +120,7 @@ export class Products {
   openEditForm(product: ProductDto): void {
     this.editingProduct.set(product);
     this.selectedFile = null;
-    this.imagePreview.set(product.imagePath);
+    this.imagePreview.set(resolveMediaUrl(product.imagePath));
     this.formError.set(null);
     this.form.reset({
       name: product.name,
