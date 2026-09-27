@@ -1,4 +1,4 @@
-# Building the API / backend for JOLIVE POULTRY FARM
+# Building the API / backend for  POULTRY FARM
 
 The frontend currently runs entirely on **mock data and `localStorage`** — every product, category,
 user account, order, payment and receipt is fabricated client-side, and the app makes **zero network
@@ -57,7 +57,7 @@ Reads from `src/app/core/mock-data/categories.mock.ts`.
 ### 2.3 `AuthService` — `src/app/core/auth/auth.service.ts`
 Validates against `src/app/core/mock-data/users.mock.ts` (one seeded account:
 `yayah.waritay` / `Sal@2024`, **plain-text password**, stored in `localStorage` under
-`jolive-mock-users`) and persists the "session" under `jolive-auth`.
+`mock-users`) and persists the "session" under `auth`.
 
 | Method | Needs |
 |---|---|
@@ -70,7 +70,7 @@ Validates against `src/app/core/mock-data/users.mock.ts` (one seeded account:
 see §6.
 
 ### 2.4 `CartService` — `src/app/core/cart/cart.service.ts`
-Pure `localStorage` (`jolive-cart`). No server-side equivalent has ever been built, even though the
+Pure `localStorage` (`cart`). No server-side equivalent has ever been built, even though the
 Prisma schema already has `Cart`/`CartItem` models.
 
 This one's a genuine design decision, not just a gap:
@@ -85,8 +85,8 @@ re-validates it. A real backend must re-check current stock when `POST /api/orde
 is the actual place overselling would be prevented, not the cart.
 
 ### 2.5 `OrderService` — `src/app/core/orders/order.service.ts`
-Fully mock. Orders are objects pushed into a `localStorage` array (`jolive-orders`); order numbers
-come from a client-side counter (`jolive-order-sequence`). **No backend endpoint exists for this at
+Fully mock. Orders are objects pushed into a `localStorage` array (`orders`); order numbers
+come from a client-side counter (`order-sequence`). **No backend endpoint exists for this at
 all** — this is the biggest real gap.
 
 | Method | Needs |
@@ -103,7 +103,7 @@ failure/retry UI path is testable.
 
 | What it fakes | Needs |
 |---|---|
-| The whole mobile money charge/approve cycle | `POST /api/payments` (create payment intent, provider-agnostic — see the `PaymentProvider` interface already specified in `JOLIVE-AI-BUILD-PROMPT.md` §7) + either polling `GET /api/payments/:id/status` or a webhook receiver `POST /api/payments/webhook/:provider`. None of this exists server-side yet. |
+| The whole mobile money charge/approve cycle | `POST /api/payments` (create payment intent, provider-agnostic — see the `PaymentProvider` interface already specified in `AI-BUILD-PROMPT.md` §7) + either polling `GET /api/payments/:id/status` or a webhook receiver `POST /api/payments/webhook/:provider`. None of this exists server-side yet. |
 | The `mock`/forced-failure-number trick | This convenience should live in the **backend's** mock payment driver (`PAYMENT_DRIVER=mock` is already in `server/.env.example`), not in frontend code — delete the frontend's hardcoded `0000` check once a real driver exists. |
 | Provider list: Orange Money, Afrimoney, **QMoney** | ⚠️ **Schema gap:** `server/prisma/schema.prisma`'s `PaymentProvider` enum only has `ORANGE_MONEY`, `AFRIMONEY`, `MANUAL` — **`QMONEY` was added to the frontend after the schema was written and needs to be added to the enum** (and a provider adapter) before this can go live. |
 | Idempotency | The `Payment` model already has a unique `idempotencyKey` column — the mock doesn't use one. A real `POST /api/payments` must require an idempotency key from the client so a double-tap/retry can't double-charge. |
@@ -117,7 +117,7 @@ The "Print / Save as PDF" button is `window.print()` — a real stand-in for now
 |---|---|
 | Actual PDF generation | Server-side, per the brief: `@react-pdf/renderer` was the original React-stack choice; **PDFKit** was the Angular-stack substitute decided on earlier (see root `README.md`'s stack-mapping table) — neither is implemented. Generate on order-creation/payment-success, store the file (filesystem in dev, object storage in prod — `RECEIPTS_STORAGE_DRIVER` is already in `.env.example`), and persist a `Receipt` row (the Prisma model already exists). |
 | Serving it | `GET /api/receipts/:receiptNumber` — must **never be a guessable public URL**; same authorization rule as order lookup (owner, or order number + phone for guests). |
-| The watermark | `ReceiptWatermarkComponent` (rotated, low-opacity JOLIVE mark) is done and matches the brief's spec (§8) — the PDF version needs to reproduce the same look using vector drawing (PDFKit supports this directly: translate/rotate/opacity on the raw canvas), not a rasterized image. |
+| The watermark | `ReceiptWatermarkComponent` (rotated, low-opacity mark) is done and matches the brief's spec (§8) — the PDF version needs to reproduce the same look using vector drawing (PDFKit supports this directly: translate/rotate/opacity on the raw canvas), not a rasterized image. |
 
 ### 2.8 Delivery fees — `src/app/core/mock-data/delivery-fees.mock.ts`
 A static `area → feeCents` table baked into the JS bundle (10 Freetown areas plus an "Other" catch-all). The brief's
@@ -227,7 +227,7 @@ bring any piece back online:
 4. Delete the corresponding file(s) in `src/app/core/mock-data/` once nothing references them.
 5. Rebuild (`ng build`) and grep the output for stray `/api` strings the other direction — i.e. once
    you *want* API calls, confirm they're actually present:
-   `grep -rl "/api" dist/JOLIVEPOULTRYFARM/browser/*.js`
+   `grep -rl "/api" dist/POULTRYFARM/browser/*.js`
 
 Do this service-by-service rather than all at once — `ProductsService`/`CategoriesService`/
 `AuthService` can go first since the backend already exists for them; `OrderService`/`PaymentService`

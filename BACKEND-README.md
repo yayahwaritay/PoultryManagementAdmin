@@ -18,7 +18,7 @@ An ASP.NET Core (.NET 10) Web API backed by **PostgreSQL** (via EF Core / Npgsql
 ## 1. Setup
 
 1. **Postgres connection** lives in `appsettings.json` → `ConnectionStrings:DefaultConnection`
-   (already pointed at the local `jolive_store` database and verified working end-to-end —
+   (already pointed at the local `poultryman` database and verified working end-to-end —
    migration applied, Super Admin seeded, login/category/product/order flows all smoke-tested).
    Move real credentials to a user-secret or the `ConnectionStrings__DefaultConnection` env var
    before this goes anywhere beyond your machine.
@@ -41,7 +41,7 @@ An ASP.NET Core (.NET 10) Web API backed by **PostgreSQL** (via EF Core / Npgsql
 On startup, **in the Development environment only**, `DbSeeder.SeedSampleDataAsync` populates the
 database with test data (no-ops if any category already exists, so it only ever runs once):
 
-- 4 categories (Furniture, Electronics, Home & Kitchen, Fashion), 2 products each (8 total)
+- 4 categories (Live Birds, Poultry Feed, Eggs, Poultry Equipment & Supplies), 2 products each (8 total)
 - 2 extra admins for testing permission boundaries, alongside the Super Admin:
   - `admin.products` / `Products@123` — `ManageProducts` only
   - `admin.orders` / `Orders@123` — `ConfirmOrders` only
@@ -67,7 +67,8 @@ To reset and reseed, drop the `Customers`/`Categories`/`Products`/`Orders`/`Orde
 - Two permissions an admin can independently hold: **`ManageProducts`**, **`ConfirmOrders`**.
 - The Super Admin implicitly passes every permission check regardless of the `Permissions` column.
 - Super Admin manages other admins via `api/superadmin/admins` (create, change permissions,
-  deactivate) — only the Super Admin can reach these routes.
+  deactivate) and customer accounts via `api/superadmin/customers` (view, edit details,
+  activate/deactivate) — only the Super Admin can reach these routes.
 - Admin and customer identities are entirely separate — a customer JWT can never satisfy an admin
   policy (or vice versa); each checks the `Customer` vs `SuperAdmin`/`Admin` role claim.
 
@@ -85,7 +86,10 @@ To reset and reseed, drop the `Customers`/`Categories`/`Products`/`Orders`/`Orde
 | Admin products | `GET/POST/PUT/DELETE /api/admin/products[...]` (POST/PUT are `multipart/form-data`, require a `CategoryId`, and support an `Image` file field) | `ManageProducts` |
 | Admin orders | `GET /api/admin/orders`, `GET /api/admin/orders/{id}`, `POST /api/admin/orders/{id}/confirm`, `POST /api/admin/orders/{id}/reject` | `ConfirmOrders` |
 | Admin transactions | `GET /api/admin/transactions`, `GET /api/admin/transactions/summary`, `POST /api/admin/transactions/{id}/reconcile` | `ConfirmOrders` |
-| Super Admin | `GET/POST /api/superadmin/admins`, `PUT /api/superadmin/admins/{id}/permissions`, `DELETE /api/superadmin/admins/{id}` | `SuperAdmin` |
+| Super Admin | `GET/POST /api/superadmin/admins`, `PUT /api/superadmin/admins/{id}/permissions`, `PUT /api/superadmin/admins/{id}/email`, `POST /api/superadmin/admins/{id}/reset-password`, `DELETE /api/superadmin/admins/{id}` | `SuperAdmin` |
+| Super Admin customers | `GET /api/superadmin/customers` (`?search=&isActive=`), `GET /api/superadmin/customers/{id}`, `PUT /api/superadmin/customers/{id}` | `SuperAdmin` |
+| Customer checkout (Monime) | `POST /api/checkout/sessions` | `Customer` — see [CHECKOUT-CUSTOMER-README.md](CHECKOUT-CUSTOMER-README.md) |
+| Super Admin checkout search | `GET /api/superadmin/checkout/sessions[...]`, `GET /api/superadmin/checkout/sessions/{id}`, `GET /api/superadmin/checkout/audit-logs[...]`, `GET /api/superadmin/checkout/audit-logs/{id}` | `SuperAdmin` — see [CHECKOUT-ADMIN-README.md](CHECKOUT-ADMIN-README.md) |
 
 All error responses (400/401/403/404/409) are `{ "message": "..." }` unless noted otherwise.
 Enums (`status`, `permissions`, etc.) serialize as their string name, not a number.
@@ -108,10 +112,17 @@ Response `200 OK`:
   "adminId": "411a23bf-d698-460b-b2c0-d162ac154043",
   "username": "Yayah.waritay",
   "isSuperAdmin": true,
-  "permissions": ["ManageProducts", "ConfirmOrders"]
+  "permissions": ["ManageProducts", "ConfirmOrders"],
+  "mustChangePassword": false,
+  "defaultPasswordExpiresAt": null
 }
 ```
-`401 Unauthorized` on bad credentials.
+`401 Unauthorized` on bad credentials. `403 { "code": "DefaultPasswordExpired" }` if the admin's emailed default password expired before they changed it.
+When `mustChangePassword` is `true`, the token only works for `POST /api/auth/change-password` (every other admin endpoint → `403`).
+
+**`POST /api/auth/change-password`** — any admin JWT, including the restricted one.
+
+Request: `{ "currentPassword": "...", "newPassword": "min 8 chars" }` → `200 OK` with a full login response (new full-access token). `400` on a wrong current password or reused password. See [EMAIL-NOTIFICATIONS-README.md](EMAIL-NOTIFICATIONS-README.md) §1.2.
 
 ---
 
@@ -175,12 +186,12 @@ Response `200 OK`:
   "items": [
     {
       "id": "2ba6b749-7327-4bdc-b01f-d688efbd0c91",
-      "name": "Men's Leather Wallet",
-      "description": "Genuine leather, bifold",
+      "name": "Table Eggs (Crate of 30)",
+      "description": "Fresh, graded medium size",
       "categoryId": "16c2a33f-6db7-440d-8ee2-1408e1d02dc4",
-      "categoryName": "Fashion",
-      "priceCents": 25000,
-      "quantityInStock": 38,
+      "categoryName": "Eggs",
+      "priceCents": 45000,
+      "quantityInStock": 96,
       "imagePath": "/uploads/products/9f1c2e3a-....jpg",
       "isActive": true,
       "createdAt": "2026-08-13T23:14:30.95Z",
@@ -203,8 +214,8 @@ Response `200 OK`:
 [
   {
     "id": "16c2a33f-6db7-440d-8ee2-1408e1d02dc4",
-    "name": "Fashion",
-    "description": "Bags, wallets and accessories",
+    "name": "Eggs",
+    "description": "Table eggs and fertile hatching eggs",
     "isActive": true,
     "productCount": 2,
     "createdAt": "2026-08-13T23:14:30.93Z",
@@ -237,15 +248,15 @@ Response `201 Created`:
 ```json
 {
   "id": "9c48f5e0-f816-467c-9f0e-5ddfe1718e84",
-  "orderNumber": "JSC-2026-000006",
+  "orderNumber": "JPF-2026-000006",
   "customerName": "Test Buyer",
   "customerPhone": "+23276099999",
   "customerEmail": "test.buyer@example.com",
   "deliveryAddress": "1 Test Lane, Freetown",
   "status": "Pending",
-  "subtotalCents": 25000,
+  "subtotalCents": 45000,
   "deliveryFeeCents": 20000,
-  "totalCents": 45000,
+  "totalCents": 65000,
   "createdAt": "2026-08-13T23:44:23.25Z",
   "confirmedAt": null,
   "confirmedByAdminUsername": null,
@@ -253,15 +264,15 @@ Response `201 Created`:
   "items": [
     {
       "productId": "2ba6b749-7327-4bdc-b01f-d688efbd0c91",
-      "productNameSnapshot": "Men's Leather Wallet",
-      "unitPriceCentsSnapshot": 25000,
+      "productNameSnapshot": "Table Eggs (Crate of 30)",
+      "unitPriceCentsSnapshot": 45000,
       "quantity": 1,
-      "subtotalCents": 25000
+      "subtotalCents": 45000
     }
   ]
 }
 ```
-`409 Conflict` — `{ "message": "Not enough stock for 'Men's Leather Wallet'." }`
+`409 Conflict` — `{ "message": "Not enough stock for 'Table Eggs (Crate of 30)'." }`
 `400 Bad Request` — `{ "message": "Product '...' was not found or is inactive." }`
 
 **`GET /api/orders`** — the signed-in customer's own orders, newest first. Response `200 OK`: an array of order objects (same shape as above).
@@ -278,7 +289,7 @@ Response `201 Created`:
 
 Request:
 ```json
-{ "name": "Furniture", "description": "Household and office furniture" }
+{ "name": "Poultry Feed", "description": "Starter, grower and layer feed" }
 ```
 Response `201 Created`: a category object (see public shape above). `409 Conflict` if the name is taken.
 
@@ -286,7 +297,7 @@ Response `201 Created`: a category object (see public shape above). `409 Conflic
 
 Request:
 ```json
-{ "name": "Furniture", "description": "Updated description", "isActive": true }
+{ "name": "Poultry Feed", "description": "Updated description", "isActive": true }
 ```
 Response `200 OK`: the updated category object.
 
@@ -314,21 +325,21 @@ Example (`curl`):
 ```
 curl -X POST /api/admin/products \
   -H "Authorization: Bearer <admin token>" \
-  -F "Name=Wooden Chair" -F "Description=Sturdy oak chair" \
+  -F "Name=Broiler Chicken (Live)" -F "Description=8-week-old broiler, dressed weight ~2kg" \
   -F "CategoryId=d9c286d4-fade-49a7-99a1-b09fc33e9d97" \
-  -F "PriceCents=150000" -F "QuantityInStock=10" \
-  -F "Image=@chair.jpg"
+  -F "PriceCents=85000" -F "QuantityInStock=40" \
+  -F "Image=@broiler.jpg"
 ```
 Response `201 Created`:
 ```json
 {
   "id": "73d9fd89-c96a-4104-989e-eb772141ad96",
-  "name": "Wooden Chair",
-  "description": "Sturdy oak chair",
+  "name": "Broiler Chicken (Live)",
+  "description": "8-week-old broiler, dressed weight ~2kg",
   "categoryId": "d9c286d4-fade-49a7-99a1-b09fc33e9d97",
-  "categoryName": "Furniture",
-  "priceCents": 150000,
-  "quantityInStock": 10,
+  "categoryName": "Live Birds",
+  "priceCents": 85000,
+  "quantityInStock": 40,
   "imagePath": "/uploads/products/6f2a1c9e-....jpg",
   "isActive": true,
   "createdAt": "2026-08-13T23:06:21.22Z",
@@ -378,8 +389,8 @@ Response `200 OK`:
   {
     "id": "3a1f9c2e-...",
     "orderId": "9c48f5e0-f816-467c-9f0e-5ddfe1718e84",
-    "orderNumber": "JSC-2026-000006",
-    "reference": "JSC-2026-000006",
+    "orderNumber": "JPF-2026-000006",
+    "reference": "JPF-2026-000006",
     "provider": "Cash",
     "amountCents": 45000,
     "status": "Pending",
@@ -425,6 +436,7 @@ Response `200 OK`:
   {
     "id": "ad020342-1ce4-4c12-81be-380d29daaec5",
     "username": "admin.products",
+    "email": "products@example.com",
     "isSuperAdmin": false,
     "isActive": true,
     "permissions": ["ManageProducts"],
@@ -439,21 +451,132 @@ Request:
 ```json
 {
   "username": "admin.orders2",
-  "password": "Orders@456",
+  "email": "orders2@example.com",
   "permissions": ["ConfirmOrders"]
 }
 ```
-Response `201 Created`: an admin object as above. `409 Conflict` if the username is taken; `400 Bad Request` on an unknown permission name.
+Response `201 Created`: an admin object as above. `409 Conflict` if the username is taken; `400 Bad Request` on an unknown permission name or a missing/invalid `email`. `password` is optional (generated if omitted). Either way it becomes a **default password**: it is emailed to the admin, must be changed on first login via `POST /api/auth/change-password`, and expires after 24 hours. See [EMAIL-NOTIFICATIONS-README.md](EMAIL-NOTIFICATIONS-README.md) §1.1–1.3.
 
 **`PUT /api/superadmin/admins/{id}/permissions`**
 
 Request:
 ```json
-{ "permissions": ["ManageProducts", "ConfirmOrders"], "isActive": true }
+{ "permissions": ["ManageProducts", "ConfirmOrders"], "isActive": true, "email": "optional@example.com" }
 ```
 Response `200 OK`: the updated admin object. `400 Bad Request` if targeting the Super Admin.
 
+**`PUT /api/superadmin/admins/{id}/email`** — `{ "email": "a@example.com" }`. Works on any admin, including Super Admins. `200 OK` with the updated admin object.
+
+**`POST /api/superadmin/admins/{id}/reset-password`** — no body. Emails the admin a new generated default password (24-hour expiry, must be changed on login). `200 OK` with the updated admin object; `400` if the admin has no email.
+
 **`DELETE /api/superadmin/admins/{id}`** — no body. Deactivates (soft-delete). `204 No Content`. `400 Bad Request` if targeting the Super Admin.
+
+---
+
+### Super Admin — manage customers (require `SuperAdmin`)
+
+Use these for a "Customers" page in the admin frontend: a searchable table (list endpoint), a
+detail view with order history (detail endpoint), and an edit form / active toggle (update endpoint).
+Only show this page to users whose JWT role is `SuperAdmin`; any other admin gets `403 Forbidden`.
+
+**`GET /api/superadmin/customers`**
+
+Query params (all optional, combine with AND):
+
+| Param | Type | Meaning |
+|---|---|---|
+| `search` | string | Case-insensitive partial match on full name, email **or** phone. |
+| `isActive` | bool | `true` = active accounts only, `false` = deactivated only. Omit for all. |
+
+Sorted newest first. Not paginated — the whole matching list is returned.
+
+Response `200 OK`:
+```json
+[
+  {
+    "id": "5b1f2c3e-9a41-4d8e-b0a2-7f6c1d2e3a4b",
+    "fullName": "Aminata Kamara",
+    "email": "aminata@example.com",
+    "phone": "+23276123456",
+    "isActive": true,
+    "createdAt": "2026-08-14T10:02:11.41Z",
+    "orderCount": 3,
+    "totalSpentCents": 1250000
+  }
+]
+```
+- `orderCount` counts **every** order the customer has placed (any status).
+- `totalSpentCents` sums order totals **excluding `Rejected` and `Cancelled` orders**. Like every
+  money field in this API it is in minor units (cents) — divide by 100 for display.
+
+**`GET /api/superadmin/customers/{id}`**
+
+Response `200 OK`: the same fields as a list row, plus the customer's full order history (newest first):
+```json
+{
+  "id": "5b1f2c3e-9a41-4d8e-b0a2-7f6c1d2e3a4b",
+  "fullName": "Aminata Kamara",
+  "email": "aminata@example.com",
+  "phone": "+23276123456",
+  "isActive": true,
+  "createdAt": "2026-08-14T10:02:11.41Z",
+  "orderCount": 3,
+  "totalSpentCents": 1250000,
+  "orders": [
+    {
+      "id": "c7d8e9f0-1a2b-4c3d-8e9f-0a1b2c3d4e5f",
+      "orderNumber": "JPF-2026-000123",
+      "status": "Confirmed",
+      "totalCents": 450000,
+      "createdAt": "2026-09-20T14:31:05.12Z"
+    }
+  ]
+}
+```
+`404 Not Found` if the id doesn't exist. `orders[].status` is one of `Pending`, `Confirmed`,
+`Rejected`, `Completed`, `Cancelled`. For full order details (line items, delivery address,
+transactions), link through to `GET /api/admin/orders/{id}` using `orders[].id`.
+
+**`PUT /api/superadmin/customers/{id}`**
+
+Every field is optional — send only what changed. Omitted, `null` or blank fields are left untouched
+(so a field can't be cleared to empty).
+
+| Field | Type | Rules |
+|---|---|---|
+| `fullName` | string | 2–200 chars. |
+| `email` | string | Valid email, max 200 chars. Trimmed and lowercased server-side; must not belong to another customer. |
+| `phone` | string | Max 30 chars. |
+| `isActive` | bool | `false` deactivates the account; `true` reactivates it. |
+
+Request (e.g. correcting a phone number and deactivating the account):
+```json
+{ "phone": "+23276000000", "isActive": false }
+```
+Response `200 OK`: the updated customer, same shape as `GET /api/superadmin/customers/{id}` —
+use it to refresh the view without a second request.
+
+**Email notification:** if at least one value actually changed, the customer is emailed a summary of
+the changes (previous → new value) in the background. On an email change, both the new and the old
+address get the email. Nothing is sent when no value changed. See
+[EMAIL-NOTIFICATIONS-README.md](EMAIL-NOTIFICATIONS-README.md) §1.7.
+
+Errors:
+- `400 Bad Request` — validation failed (e.g. invalid email, name too short). This is the standard
+  ASP.NET validation shape, **not** `{ "message" }`:
+  `{ "title": "...", "status": 400, "errors": { "Email": ["The Email field is not a valid e-mail address."] } }`
+  — map `errors` keys to form fields.
+- `404 Not Found` — no customer with that id.
+- `409 Conflict` — `{ "message": "'x@example.com' is already registered to another customer." }`
+
+Behaviour to surface in the UI:
+- **Deactivating** stops the customer logging in (login returns `401 Invalid email or password`).
+  A customer who is already signed in keeps their session until their current JWT expires — it
+  isn't revoked immediately. Worth saying in the confirm dialog.
+- **Changing the email** changes the customer's login email; tell them to use the new address.
+- **Past orders keep their original details.** Orders snapshot the customer's name/phone/email at
+  order time, so editing a profile does not rewrite existing orders.
+- There is no delete and no password reset for customers — use `isActive: false` instead of deleting.
 
 ## 4. Product images
 
@@ -471,7 +594,7 @@ static files.
   client-sent amount. All money is an integer count of cents.
 - Stock is decremented with a guarded, atomic `UPDATE ... WHERE QuantityInStock >= :qty` inside a
   DB transaction, so two concurrent orders for the last unit of stock can't both succeed.
-- Order numbers (`JSC-{year}-{seq}`) come from a real Postgres sequence (`OrderNumberSeq`), not an
+- Order numbers (`JPF-{year}-{seq}`) come from a real Postgres sequence (`OrderNumberSeq`), not an
   in-memory/localStorage counter, so they can't collide across concurrent requests.
 - `IdempotencyKey` on order creation makes a retried/double-submitted request return the original
   order instead of creating a duplicate.
@@ -488,7 +611,23 @@ Static pages under `wwwroot/admin/` (no build step, plain HTML/JS):
 
 Reachable by any admin with the `ConfirmOrders` permission, or the Super Admin.
 
-## 7. Known simplifications (not in scope of what was asked, flagging for later)
+## 7. Monime hosted checkout
+
+`POST /api/checkout/sessions` creates a Monime hosted checkout session (redirect-to-pay, card/bank/
+mobile-money/wallet) and stores the response. Monime's `Authorization`/`Monime-Space-Id`/
+`Monime-Version` headers are fixed server-side config (`Monime` section in `appsettings*.json` —
+**move `Monime:AuthorizationToken` to a real secret store before production**); the `Idempotency-Key`
+header is a fresh server-generated UUID per request, never client-supplied. Every attempt (success,
+Monime-rejected, or network failure) is written to `CheckoutAuditLogs`; a successful response is also
+persisted to `CheckoutSessions`. Full integration contracts:
+
+- [CHECKOUT-CUSTOMER-README.md](CHECKOUT-CUSTOMER-README.md) — for the customer-facing frontend calling `POST /api/checkout/sessions`.
+- [CHECKOUT-ADMIN-README.md](CHECKOUT-ADMIN-README.md) — for the Admin frontend searching stored checkout sessions/audit logs (`SuperAdmin`-only).
+
+This is separate from the existing `Transaction`/`api/admin/transactions` reconciliation flow above,
+which remains the manual cash/statement-matching path.
+
+## 8. Known simplifications (not in scope of what was asked, flagging for later)
 
 - No email verification or password-reset flow on customer accounts — signup is immediate,
   passwords can only be changed by an admin touching the DB directly today.

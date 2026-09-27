@@ -4,5 +4,5 @@
 // Left relative here so it also works when both are served behind the same reverse proxy.
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:5165/api',
+  apiUrl: 'https://poultrymanagementapi.onrender.com/api',
 };
