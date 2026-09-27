@@ -2,7 +2,7 @@
   <div class="page-header">
     <div>
       <h1>Admins</h1>
-      <p class="page-subtitle">Create Admin accounts and manage their feature permissions.</p>
+      <p class="page-subtitle">Create Admin accounts, manage their permissions, emails and passwords.</p>
     </div>
     <button type="button" class="btn btn-primary" (click)="toggleCreateForm()">
       {{ showCreateForm() ? 'Cancel' : '+ New admin' }}
@@ -17,11 +17,29 @@
       <div class="form-grid">
         <div class="field">
           <label for="new-username">Username</label>
-          <input id="new-username" formControlName="username" placeholder="e.g. admin.orders2" />
+          <input id="new-username" formControlName="username" placeholder="e.g. seller.freetown" />
+          @if (createFieldErrors()['username']) {
+            <span class="hint error-hint">{{ createFieldErrors()['username'] }}</span>
+          } @else if (createForm.controls.username.invalid && createForm.controls.username.touched) {
+            <span class="hint error-hint">Username is required.</span>
+          }
         </div>
         <div class="field">
-          <label for="new-password">Password</label>
-          <input id="new-password" type="password" formControlName="password" placeholder="At least 6 characters" />
+          <label for="new-email">Email</label>
+          <input
+            id="new-email"
+            type="email"
+            formControlName="email"
+            autocomplete="off"
+            placeholder="e.g. seller.freetown@example.com"
+          />
+          @if (createFieldErrors()['email']) {
+            <span class="hint error-hint">{{ createFieldErrors()['email'] }}</span>
+          } @else if (createForm.controls.email.invalid && createForm.controls.email.touched) {
+            <span class="hint error-hint">A valid email address is required.</span>
+          } @else {
+            <span class="hint">A temporary password is generated and emailed here. It expires after 24 hours.</span>
+          }
         </div>
       </div>
       <div class="field permissions-field">
@@ -34,6 +52,9 @@
           <input id="new-co" type="checkbox" formControlName="confirmOrders" />
           <label for="new-co">ConfirmOrders</label>
         </div>
+        @if (createFieldErrors()['permissions']) {
+          <span class="hint error-hint">{{ createFieldErrors()['permissions'] }}</span>
+        }
       </div>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary" [disabled]="creating()">
@@ -56,6 +77,7 @@
       <thead>
         <tr>
           <th>Username</th>
+          <th>Email</th>
           <th>Role</th>
           <th>Permissions</th>
           <th>Status</th>
@@ -65,16 +87,17 @@
       </thead>
       <tbody>
         @if (loading()) {
-          <tr class="empty-row"><td colspan="6">Loading admins…</td></tr>
+          <tr class="empty-row"><td colspan="7">Loading admins…</td></tr>
         } @else if (loadError()) {
-          <tr class="empty-row"><td colspan="6">{{ loadError() }}</td></tr>
+          <tr class="empty-row"><td colspan="7">{{ loadError() }}</td></tr>
         } @else if (admins().length === 0) {
-          <tr class="empty-row"><td colspan="6">No admins yet.</td></tr>
+          <tr class="empty-row"><td colspan="7">No admins yet.</td></tr>
         } @else {
           @for (admin of admins(); track admin.id) {
             @if (editingId() === admin.id) {
               <tr>
                 <td>{{ admin.username }}</td>
+                <td>{{ admin.email ?? '—' }}</td>
                 <td>
                   @if (admin.isSuperAdmin) {
                     <span class="badge badge-brand">Super Admin</span>
@@ -128,7 +151,21 @@
               </tr>
             } @else {
               <tr>
-                <td>{{ admin.username }}</td>
+                <td>
+                  {{ admin.username }}
+                  @if (admin.id === currentAdminId()) {
+                    <span class="muted you-tag">(you)</span>
+                  }
+                </td>
+                <td>
+                  @if (admin.email) {
+                    {{ admin.email }}
+                  } @else {
+                    <span class="badge badge-warning" title="This admin won't receive new-order emails or password resets">
+                      No email: won't receive order alerts
+                    </span>
+                  }
+                </td>
                 <td>
                   @if (admin.isSuperAdmin) {
                     <span class="badge badge-brand">Super Admin</span>
@@ -145,29 +182,63 @@
                   }
                 </td>
                 <td>
-                  @if (admin.isActive) {
-                    <span class="badge badge-success">Active</span>
-                  } @else {
-                    <span class="badge badge-neutral">Inactive</span>
-                  }
+                  <div class="status-stack">
+                    @if (admin.isActive) {
+                      <span class="badge badge-success">Active</span>
+                    } @else {
+                      <span class="badge badge-neutral">Inactive</span>
+                    }
+                    @switch (passwordStatus(admin)) {
+                      @case ('awaiting') {
+                        <span class="badge badge-warning" [title]="'Temporary password expires ' + (admin.defaultPasswordExpiresAt | date: 'medium')">
+                          Awaiting first login
+                        </span>
+                        @if (admin.defaultPasswordExpiresAt) {
+                          <span class="hint muted">Expires {{ admin.defaultPasswordExpiresAt | date: 'MMM d, h:mm a' }}</span>
+                        }
+                      }
+                      @case ('expired') {
+                        <span class="badge badge-danger">Password expired: reset required</span>
+                      }
+                    }
+                  </div>
                 </td>
                 <td>{{ admin.createdAt | date: 'mediumDate' }}</td>
                 <td>
-                  @if (!admin.isSuperAdmin) {
-                    <div class="row-actions">
+                  <div class="row-actions">
+                    @if (!admin.isSuperAdmin) {
                       <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(admin)">Edit</button>
-                      @if (admin.isActive) {
-                        <button
-                          type="button"
-                          class="btn btn-danger btn-sm"
-                          [disabled]="deactivatingId() === admin.id"
-                          (click)="deactivate(admin)"
-                        >
-                          Deactivate
-                        </button>
-                      }
-                    </div>
-                  }
+                    }
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="openEmailDialog(admin)">
+                      {{ admin.email ? 'Edit email' : 'Set email' }}
+                    </button>
+                    @if (admin.id !== currentAdminId()) {
+                      <button
+                        type="button"
+                        class="btn btn-sm"
+                        [class.btn-primary]="passwordStatus(admin) === 'expired'"
+                        [class.btn-secondary]="passwordStatus(admin) !== 'expired'"
+                        [disabled]="resettingId() === admin.id"
+                        (click)="resetPassword(admin)"
+                      >
+                        @if (resettingId() === admin.id) {
+                          <span class="spinner"></span> Resetting…
+                        } @else {
+                          Reset password
+                        }
+                      </button>
+                    }
+                    @if (!admin.isSuperAdmin && admin.isActive) {
+                      <button
+                        type="button"
+                        class="btn btn-danger btn-sm"
+                        [disabled]="deactivatingId() === admin.id"
+                        (click)="deactivate(admin)"
+                      >
+                        Deactivate
+                      </button>
+                    }
+                  </div>
                 </td>
               </tr>
             }
@@ -177,3 +248,42 @@
     </table>
   </div>
 </div>
+
+@if (emailTarget(); as target) {
+  <div class="dialog-backdrop" (click)="closeEmailDialog()">
+    <form class="dialog" (click)="$event.stopPropagation()" (ngSubmit)="saveEmail()">
+      <h3>{{ target.email ? 'Edit email' : 'Set email' }} for {{ target.username }}</h3>
+      <p>
+        New-order alerts and temporary passwords are sent to this address.
+        @if (target.isSuperAdmin) {
+          Super Admins need an email to receive new-order emails.
+        }
+      </p>
+      @if (emailError()) {
+        <div class="alert alert-danger" role="alert">{{ emailError() }}</div>
+      }
+      <div class="field">
+        <label for="admin-email">Email</label>
+        <input
+          id="admin-email"
+          type="email"
+          name="admin-email"
+          [ngModel]="emailDraft()"
+          (ngModelChange)="emailDraft.set($event)"
+          placeholder="name@example.com"
+          autocomplete="off"
+        />
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" [disabled]="savingEmail()" (click)="closeEmailDialog()">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="savingEmail()">
+          @if (savingEmail()) {
+            <span class="spinner"></span> Saving…
+          } @else {
+            Save email
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+}

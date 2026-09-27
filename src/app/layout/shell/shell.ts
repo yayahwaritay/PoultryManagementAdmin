@@ -49,6 +49,7 @@ export class Shell {
       icon: '⇆',
       visible: this.auth.hasPermission('ConfirmOrders')
     },
+    { label: 'Customers', path: '/customers', icon: '☺', visible: this.isSuperAdmin() },
     { label: 'Admins', path: '/admins', icon: '★', visible: this.isSuperAdmin() }
   ]);
 

@@ -42,6 +42,16 @@ export const routes: Routes = [
         path: 'admins',
         canActivate: [superAdminGuard],
         loadComponent: () => import('./pages/admins/admins').then((m) => m.Admins)
+      },
+      {
+        path: 'customers',
+        canActivate: [superAdminGuard],
+        loadComponent: () => import('./pages/customers/customers').then((m) => m.Customers)
+      },
+      {
+        path: 'account/password',
+        loadComponent: () =>
+          import('./pages/change-password/change-password').then((m) => m.ChangePassword)
       }
     ]
   },

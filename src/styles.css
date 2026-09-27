@@ -352,6 +352,12 @@ tbody tr:hover {
   color: var(--danger);
 }
 
+.alert-warning {
+  background: var(--warning-light);
+  border-color: #fde68a;
+  color: #92400e;
+}
+
 .alert-success {
   background: var(--success-light);
   border-color: #bbf7d0;
@@ -403,4 +409,43 @@ tbody tr:hover {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ---------- Dialogs ---------- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 900;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 440px;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: 0 20px 45px rgba(2, 6, 23, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dialog h3 {
+  font-size: 1.1rem;
+}
+
+.dialog p {
+  font-size: 0.9rem;
+  color: var(--ink-700);
+}
+
+.dialog .form-actions {
+  justify-content: flex-end;
+  margin-top: 0.25rem;
 }

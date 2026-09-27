@@ -82,7 +82,8 @@ export interface OrderDto {
   orderNumber: string;
   customerName: string;
   customerPhone: string;
-  customerEmail: string;
+  /** `null` on legacy orders — no confirm/reject email is sent for those. */
+  customerEmail: string | null;
   deliveryAddress: string;
   status: OrderStatus;
   subtotalCents: number;
@@ -150,19 +151,82 @@ export interface TransactionFilter {
 export interface AdminUserDto {
   id: string;
   username: string;
+  /** `null` for older and seeded accounts — they receive no emails until one is set. */
+  email: string | null;
   isSuperAdmin: boolean;
   isActive: boolean;
   permissions: AdminPermission[];
+  /** True until the admin replaces their emailed default password. */
+  mustChangePassword?: boolean;
+  /** When the emailed default password stops working; `null` once they've set their own. */
+  defaultPasswordExpiresAt?: string | null;
   createdAt: string;
 }
 
+/**
+ * `password` is optional — leave it out and the server generates one and emails it to `email`.
+ * Either way it is a default password that must be changed on first login within 24 hours.
+ */
 export interface CreateAdminRequest {
   username: string;
-  password: string;
+  email: string;
+  password?: string;
   permissions: AdminPermission[];
 }
 
 export interface UpdateAdminPermissionsRequest {
   permissions: AdminPermission[];
   isActive: boolean;
+  /** Replaces the email when present; left unchanged when omitted. */
+  email?: string;
+}
+
+export interface UpdateAdminEmailRequest {
+  email: string;
+}
+
+// ---------------------------------------------------------------------------
+// Super Admin — /api/superadmin/customers (require SuperAdmin)
+// ---------------------------------------------------------------------------
+
+export interface CustomerDto {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  isActive: boolean;
+  /** True after a Super Admin reset, until the customer chooses their own password. */
+  mustChangePassword?: boolean;
+  /** When the emailed temporary password stops working; `null` when none is outstanding. */
+  temporaryPasswordExpiresAt?: string | null;
+  createdAt: string;
+  /** Every order the customer has placed, any status. */
+  orderCount: number;
+  /** Order totals excluding Rejected and Cancelled orders, in cents. */
+  totalSpentCents: number;
+}
+
+export interface CustomerOrderSummaryDto {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  totalCents: number;
+  createdAt: string;
+}
+
+export interface CustomerDetailDto extends CustomerDto {
+  orders: CustomerOrderSummaryDto[];
+}
+
+export interface CustomerFilter {
+  search?: string;
+  isActive?: boolean | null;
+}
+
+/** Every field optional — send only what changed. Blank values are ignored server-side. */
+export interface UpdateCustomerRequest {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  isActive?: boolean;
 }

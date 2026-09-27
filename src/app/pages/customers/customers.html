@@ -1,0 +1,299 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Customers</h1>
+      <p class="page-subtitle">View customer accounts, correct their details, and activate or deactivate them.</p>
+    </div>
+  </div>
+
+  <form class="filter-bar" (ngSubmit)="load()">
+    <div class="field search-field">
+      <label for="customer-search">Search</label>
+      <input
+        id="customer-search"
+        name="customer-search"
+        type="search"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+        placeholder="Name, email or phone"
+      />
+    </div>
+    <div class="field">
+      <label for="customer-status">Status</label>
+      <select
+        id="customer-status"
+        name="customer-status"
+        [ngModel]="activeFilter()"
+        (ngModelChange)="activeFilter.set($event); load()"
+      >
+        <option value="">All accounts</option>
+        <option value="true">Active</option>
+        <option value="false">Deactivated</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-secondary">Search</button>
+    @if (search() || activeFilter()) {
+      <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear</button>
+    }
+  </form>
+
+  <div class="customers-layout">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Orders</th>
+            <th>Total spent</th>
+            <th>Status</th>
+            <th>Joined</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr class="empty-row"><td colspan="8">Loading customers…</td></tr>
+          } @else if (loadError()) {
+            <tr class="empty-row"><td colspan="8">{{ loadError() }}</td></tr>
+          } @else if (customers().length === 0) {
+            <tr class="empty-row"><td colspan="8">No customers match this filter.</td></tr>
+          } @else {
+            @for (customer of customers(); track customer.id) {
+              <tr (click)="select(customer)" class="clickable-row" [class.selected]="selectedId() === customer.id">
+                <td>{{ customer.fullName }}</td>
+                <td>{{ customer.email }}</td>
+                <td>{{ customer.phone }}</td>
+                <td>{{ customer.orderCount }}</td>
+                <td>Le {{ (customer.totalSpentCents / 100) | number: '1.2-2' }}</td>
+                <td>
+                  <div class="status-stack">
+                    @if (customer.isActive) {
+                      <span class="badge badge-success">Active</span>
+                    } @else {
+                      <span class="badge badge-neutral">Deactivated</span>
+                    }
+                    <ng-container *ngTemplateOutlet="passwordBadge; context: { $implicit: customer }" />
+                  </div>
+                </td>
+                <td>{{ customer.createdAt | date: 'mediumDate' }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    [class.btn-primary]="passwordStatus(customer) === 'expired'"
+                    [class.btn-secondary]="passwordStatus(customer) !== 'expired'"
+                    [disabled]="resettingId() === customer.id"
+                    (click)="resetPassword(customer, $event)"
+                  >
+                    @if (resettingId() === customer.id) {
+                      <span class="spinner"></span> Resetting…
+                    } @else {
+                      Reset password
+                    }
+                  </button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (selectedId()) {
+      <aside class="card detail-panel">
+        @if (detailLoading()) {
+          <p class="muted">Loading customer…</p>
+        } @else if (detailError()) {
+          <div class="alert alert-danger">{{ detailError() }}</div>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="closeDetail()">Close</button>
+        } @else if (detail(); as customer) {
+          <div class="detail-header">
+            <h3>{{ customer.fullName }}</h3>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="closeDetail()">Close</button>
+          </div>
+
+          <div class="detail-badges">
+            @if (customer.isActive) {
+              <span class="badge badge-success">Active</span>
+            } @else {
+              <span class="badge badge-neutral">Deactivated</span>
+            }
+            <ng-container *ngTemplateOutlet="passwordBadge; context: { $implicit: customer }" />
+            <span class="muted">Joined {{ customer.createdAt | date: 'mediumDate' }}</span>
+          </div>
+
+          <div class="mini-stats">
+            <div>
+              <div class="stat-label">Orders</div>
+              <div class="stat-value">{{ customer.orderCount }}</div>
+            </div>
+            <div>
+              <div class="stat-label">Total spent</div>
+              <div class="stat-value">Le {{ (customer.totalSpentCents / 100) | number: '1.2-2' }}</div>
+            </div>
+          </div>
+
+          @if (saveError()) {
+            <div class="alert alert-danger" role="alert">{{ saveError() }}</div>
+          }
+
+          <form class="edit-form" [formGroup]="editForm" (ngSubmit)="save()">
+            <h4>Account details</h4>
+            <div class="field">
+              <label for="c-fullname">Full name</label>
+              <input id="c-fullname" formControlName="fullName" />
+              @if (fieldErrors()['fullName']) {
+                <span class="hint error-hint">{{ fieldErrors()['fullName'] }}</span>
+              } @else if (editForm.controls.fullName.invalid && editForm.controls.fullName.touched) {
+                <span class="hint error-hint">Full name must be 2–200 characters.</span>
+              }
+            </div>
+            <div class="field">
+              <label for="c-email">Email (login)</label>
+              <input id="c-email" type="email" formControlName="email" />
+              @if (fieldErrors()['email']) {
+                <span class="hint error-hint">{{ fieldErrors()['email'] }}</span>
+              } @else if (editForm.controls.email.invalid && editForm.controls.email.touched) {
+                <span class="hint error-hint">Enter a valid email address.</span>
+              }
+            </div>
+            <div class="field">
+              <label for="c-phone">Phone</label>
+              <input id="c-phone" formControlName="phone" />
+              @if (fieldErrors()['phone']) {
+                <span class="hint error-hint">{{ fieldErrors()['phone'] }}</span>
+              } @else if (editForm.controls.phone.invalid && editForm.controls.phone.touched) {
+                <span class="hint error-hint">Phone is required (max 30 characters).</span>
+              }
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" [disabled]="saving() || editForm.pristine">
+                @if (saving()) {
+                  <span class="spinner"></span> Saving…
+                } @else {
+                  Save changes
+                }
+              </button>
+              <button type="button" class="btn btn-secondary" [disabled]="saving() || editForm.pristine" (click)="resetForm()">
+                Discard
+              </button>
+            </div>
+            <p class="hint muted">The customer will be emailed a summary of any changes. Past orders keep their original details.</p>
+          </form>
+
+          <div class="account-status">
+            <h4>Password</h4>
+            @if (resetBlockedMessage()) {
+              <div class="alert alert-warning reset-blocked" role="alert">
+                <span>{{ resetBlockedMessage() }}</span>
+                <button type="button" class="btn btn-success btn-sm" [disabled]="togglingActive()" (click)="toggleActive()">
+                  Reactivate account
+                </button>
+              </div>
+            }
+            <p class="hint muted">
+              @switch (passwordStatus(customer)) {
+                @case ('sent') {
+                  A temporary password was emailed and expires {{ customer.temporaryPasswordExpiresAt | date: 'medium' }}.
+                  If it didn't arrive, ask them to check spam, then reset again.
+                }
+                @case ('expired') {
+                  The temporary password expired on {{ customer.temporaryPasswordExpiresAt | date: 'medium' }}. Reset again to send a new one.
+                }
+                @default {
+                  Forgot their password? A temporary one is emailed to <strong>{{ customer.email }}</strong>. Correct the email above first if it's wrong.
+                }
+              }
+            </p>
+            <button
+              type="button"
+              class="btn btn-sm"
+              [class.btn-primary]="passwordStatus(customer) === 'expired'"
+              [class.btn-secondary]="passwordStatus(customer) !== 'expired'"
+              [disabled]="resettingId() === customer.id || !editForm.pristine"
+              [title]="editForm.pristine ? '' : 'Save or discard your edits first'"
+              (click)="resetPassword(customer)"
+            >
+              @if (resettingId() === customer.id) {
+                <span class="spinner"></span> Resetting…
+              } @else {
+                Reset password
+              }
+            </button>
+            <p class="hint muted">
+              Existing sessions aren't signed out by a reset. If you suspect someone else has access, deactivate the account too.
+            </p>
+          </div>
+
+          <div class="account-status">
+            <h4>Account status</h4>
+            <p class="hint muted">
+              @if (customer.isActive) {
+                Deactivating stops this customer signing in or placing orders. There is no delete.
+              } @else {
+                This customer can't sign in or place orders.
+              }
+            </p>
+            <button
+              type="button"
+              class="btn btn-sm"
+              [class.btn-danger]="customer.isActive"
+              [class.btn-success]="!customer.isActive"
+              [disabled]="togglingActive()"
+              (click)="toggleActive()"
+            >
+              @if (togglingActive()) {
+                <span class="spinner"></span> Saving…
+              } @else {
+                {{ customer.isActive ? 'Deactivate account' : 'Reactivate account' }}
+              }
+            </button>
+          </div>
+
+          <div>
+            <h4>Order history</h4>
+            @if (customer.orders.length === 0) {
+              <p class="muted hint">No orders yet.</p>
+            } @else {
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Order #</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Placed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (order of customer.orders; track order.id) {
+                    <tr>
+                      <td><a [routerLink]="['/orders']" [queryParams]="{ orderId: order.id }">{{ order.orderNumber }}</a></td>
+                      <td><span class="badge" [class]="statusBadgeClass(order.status)">{{ order.status }}</span></td>
+                      <td>Le {{ (order.totalCents / 100) | number: '1.2-2' }}</td>
+                      <td>{{ order.createdAt | date: 'mediumDate' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        }
+      </aside>
+    }
+  </div>
+</div>
+
+<ng-template #passwordBadge let-customer>
+  @switch (passwordStatus(customer)) {
+    @case ('sent') {
+      <span class="badge badge-warning" [title]="'Expires ' + (customer.temporaryPasswordExpiresAt | date: 'medium')">
+        Temporary password sent: expires {{ customer.temporaryPasswordExpiresAt | date: 'MMM d, h:mm a' }}
+      </span>
+    }
+    @case ('expired') {
+      <span class="badge badge-danger">Temporary password expired: reset again</span>
+    }
+  }
+</ng-template>

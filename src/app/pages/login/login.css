@@ -56,3 +56,8 @@
   width: 100%;
   padding: 0.7rem;
 }
+
+.login-card > .hint {
+  font-size: 0.8rem;
+  text-align: center;
+}

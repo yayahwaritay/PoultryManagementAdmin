@@ -72,7 +72,7 @@
           <dt>Phone</dt>
           <dd>{{ order.customerPhone }}</dd>
           <dt>Email</dt>
-          <dd>{{ order.customerEmail }}</dd>
+          <dd>{{ order.customerEmail ?? 'No email on file' }}</dd>
           <dt>Delivery address</dt>
           <dd>{{ order.deliveryAddress }}</dd>
           <dt>Placed</dt>
@@ -112,15 +112,22 @@
 
         @if (order.status === 'Pending') {
           <div class="field">
-            <label for="admin-notes">Admin notes</label>
+            <label for="admin-notes">Message to customer (included in the email)</label>
             <textarea
               id="admin-notes"
               rows="3"
               [ngModel]="adminNotes()"
               (ngModelChange)="adminNotes.set($event)"
               name="admin-notes"
-              placeholder="Optional note, e.g. confirmed by phone"
+              placeholder="e.g. Ready for pickup Saturday 10am."
             ></textarea>
+            <span class="hint">
+              @if (order.customerEmail) {
+                This is not private: the customer sees it in their email and order history. Required when rejecting.
+              } @else {
+                No customer email on file, so no email will be sent. Required when rejecting.
+              }
+            </span>
           </div>
 
           @if (actionError()) {
@@ -145,7 +152,7 @@
           </div>
         } @else if (order.adminNotes) {
           <div class="field">
-            <label>Admin notes</label>
+            <label>Message to customer</label>
             <p class="muted">{{ order.adminNotes }}</p>
           </div>
         }

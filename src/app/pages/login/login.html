@@ -1,47 +1,108 @@
 <div class="login-page">
-  <form class="login-card" [formGroup]="form" (ngSubmit)="submit()">
-    <div class="brand-mark">🐔</div>
-    <h1>Poultry Farm</h1>
-    <p class="subtitle">Sign in to the admin console with your Admin or Super Admin account</p>
+  @if (pending(); as pendingChange) {
+    <form class="login-card" [formGroup]="passwordForm" (ngSubmit)="submitNewPassword()">
+      <div class="brand-mark">🔑</div>
+      <h1>Set your password</h1>
+      <p class="subtitle">
+        Welcome, <strong>{{ pendingChange.username }}</strong>. You signed in with a temporary password.
+        Choose your own password to continue.
+      </p>
 
-    @if (errorMessage()) {
-      <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
-    }
-
-    <div class="field">
-      <label for="username">Username</label>
-      <input
-        id="username"
-        type="text"
-        formControlName="username"
-        autocomplete="username"
-        placeholder="e.g. Yayah.waritay"
-      />
-      @if (form.controls.username.invalid && form.controls.username.touched) {
-        <span class="hint error-hint">Username is required.</span>
+      @if (pendingChange.expiresAt) {
+        <div class="alert alert-warning">
+          Your temporary password expires on {{ pendingChange.expiresAt | date: 'medium' }}.
+        </div>
       }
-    </div>
 
-    <div class="field">
-      <label for="password">Password</label>
-      <input
-        id="password"
-        type="password"
-        formControlName="password"
-        autocomplete="current-password"
-        placeholder="••••••••"
-      />
-      @if (form.controls.password.invalid && form.controls.password.touched) {
-        <span class="hint error-hint">Password is required.</span>
+      @if (errorMessage()) {
+        <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
       }
-    </div>
 
-    <button type="submit" class="btn btn-primary submit-btn" [disabled]="submitting()">
-      @if (submitting()) {
-        <span class="spinner"></span> Signing in…
-      } @else {
-        Sign in
+      <div class="field">
+        <label for="new-password">New password</label>
+        <input
+          id="new-password"
+          type="password"
+          formControlName="newPassword"
+          autocomplete="new-password"
+          placeholder="At least 8 characters"
+        />
+        @if (passwordForm.controls.newPassword.invalid && passwordForm.controls.newPassword.touched) {
+          <span class="hint error-hint">Password must be at least 8 characters.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="confirm-password">Confirm new password</label>
+        <input
+          id="confirm-password"
+          type="password"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+          placeholder="Repeat the new password"
+        />
+        @if (passwordForm.hasError('mismatch') && passwordForm.controls.confirmPassword.touched) {
+          <span class="hint error-hint">Passwords do not match.</span>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-primary submit-btn" [disabled]="submitting()">
+        @if (submitting()) {
+          <span class="spinner"></span> Saving…
+        } @else {
+          Set password and continue
+        }
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="backToSignIn()">Back to sign in</button>
+    </form>
+  } @else {
+    <form class="login-card" [formGroup]="form" (ngSubmit)="submit()" (input)="expired.set(false)">
+      <div class="brand-mark">🐔</div>
+      <h1>Poultry Farm</h1>
+      <p class="subtitle">Sign in to the admin console with your Admin or Super Admin account</p>
+
+      @if (errorMessage()) {
+        <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
       }
-    </button>
-  </form>
+
+      <div class="field">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          type="text"
+          formControlName="username"
+          autocomplete="username"
+          placeholder="e.g. Yayah.waritay"
+        />
+        @if (form.controls.username.invalid && form.controls.username.touched) {
+          <span class="hint error-hint">Username is required.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+        />
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <span class="hint error-hint">Password is required.</span>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-primary submit-btn" [disabled]="submitting() || expired()">
+        @if (submitting()) {
+          <span class="spinner"></span> Signing in…
+        } @else {
+          Sign in
+        }
+      </button>
+      @if (expired()) {
+        <p class="hint muted">Ask a Super Admin to reset your password, then sign in with the new one from your email.</p>
+      }
+    </form>
+  }
 </div>

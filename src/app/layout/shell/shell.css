@@ -133,3 +133,8 @@
   overflow-y: auto;
   background: var(--paper);
 }
+
+.account-link {
+  font-size: 0.82rem;
+  padding: 0.45rem 0.6rem;
+}

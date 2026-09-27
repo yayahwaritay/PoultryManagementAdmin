@@ -2,7 +2,12 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AdminUserDto, CreateAdminRequest, UpdateAdminPermissionsRequest } from './admin.models';
+import {
+  AdminUserDto,
+  CreateAdminRequest,
+  UpdateAdminEmailRequest,
+  UpdateAdminPermissionsRequest
+} from './admin.models';
 
 /** GET/POST/PUT/DELETE /api/superadmin/admins — requires the `SuperAdmin` role. */
 @Injectable({ providedIn: 'root' })
@@ -14,12 +19,26 @@ export class SuperAdminAdminsService {
     return this.http.get<AdminUserDto[]>(this.base);
   }
 
+  /** The new admin is emailed their username and a default password (24-hour expiry). */
   create(payload: CreateAdminRequest): Observable<AdminUserDto> {
     return this.http.post<AdminUserDto>(this.base, payload);
   }
 
   updatePermissions(id: string, payload: UpdateAdminPermissionsRequest): Observable<AdminUserDto> {
     return this.http.put<AdminUserDto>(`${this.base}/${id}/permissions`, payload);
+  }
+
+  /** The only way to set an email on a Super Admin account. */
+  updateEmail(id: string, payload: UpdateAdminEmailRequest): Observable<AdminUserDto> {
+    return this.http.put<AdminUserDto>(`${this.base}/${id}/email`, payload);
+  }
+
+  /**
+   * Emails the admin a new generated default password and starts a new 24-hour window. Any
+   * password they set earlier stops working immediately. 400 if the admin has no email.
+   */
+  resetPassword(id: string): Observable<AdminUserDto> {
+    return this.http.post<AdminUserDto>(`${this.base}/${id}/reset-password`, null);
   }
 
   /** Deactivates (soft-delete). The Super Admin itself can never be targeted (backend returns 400). */
